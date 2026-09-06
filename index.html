@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Kurumsal Ön Muhasebe</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Supabase JS CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="bg-slate-100 font-sans min-h-screen flex flex-col">
+
+    <!-- Üst Kurumsal Menü -->
+    <header class="bg-slate-900 text-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-6 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-3 cursor-pointer" onclick="switchTab('dashboard')">
+                <span class="text-4xl">🏢</span>
+                <h1 class="text-lg font-bold tracking-wide">MiniMuhasebe <span class="text-xs bg-indigo-600 px-2 py-0.5 rounded ml-2">Kurumsal</span></h1>
+            </div>
+            <nav class="space-x-2 flex">
+                <button onclick="switchTab('dashboard')" id="btn-dashboard" class="px-3 py-2 rounded-lg text-sm font-medium bg-slate-800 transition">Ana Sayfa</button>
+                <button onclick="switchTab('invoices')" id="btn-invoices" class="px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition">Fatura & İrsaliye</button>
+                <button onclick="switchTab('accounts')" id="btn-accounts" class="px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition">Cari Kartlar</button>
+                <button onclick="switchTab('products')" id="btn-products" class="px-3 py-2 rounded-lg text-sm font-medium hover:bg-slate-800 transition">Stok / Hizmet</button>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Ana İçerik Konteynerı -->
+    <main class="container mx-auto px-6 py-8 flex-grow">
+        
+        <!-- 1. ANA SAYFA / DASHBOARD -->
+        <section id="tab-dashboard" class="space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div onclick="switchTab('invoices')" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:border-indigo-500 transition group">
+                    <div class="text-3xl mb-2">📄</div>
+                    <h3 class="font-bold text-slate-800 group-hover:text-indigo-600">Faturalar & İrsaliyeler</h3>
+                    <p class="text-xs text-slate-500 mt-1">Satış, alış ve irsaliye yönetimi</p>
+                </div>
+                <div onclick="switchTab('accounts')" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:border-indigo-500 transition group">
+                    <div class="text-3xl mb-2">👥</div>
+                    <h3 class="font-bold text-slate-800 group-hover:text-indigo-600">Cari Kartlar</h3>
+                    <p class="text-xs text-slate-500 mt-1">Müşteri ve tedarikçi rehberi</p>
+                </div>
+                <div onclick="switchTab('products')" class="bg-white p-6 rounded-xl shadow-sm border border-slate-200 cursor-pointer hover:border-indigo-500 transition group">
+                    <div class="text-3xl mb-2">📦</div>
+                    <h3 class="font-bold text-slate-800 group-hover:text-indigo-600">Stok & Hizmetler</h3>
+                    <p class="text-xs text-slate-500 mt-1">Ürün ve fiyat listeleri</p>
+                </div>
+                <div class="bg-indigo-900 text-white p-6 rounded-xl shadow-sm flex flex-col justify-between">
+                    <div>
+                        <span class="text-xs bg-indigo-700 px-2 py-0.5 rounded">Sistem Durumu</span>
+                        <h3 class="font-bold text-lg mt-2">Bulut Muhasebe Aktif</h3>
+                    </div>
+                    <p class="text-xs text-indigo-200 mt-4">Supabase Veritabanı Bağlı</p>
+                </div>
+            </div>
+
+            <!-- Özet İstatistikler -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                <h3 class="text-md font-semibold text-slate-800 mb-4">Hızlı Bakış & Özet</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
+                    <div class="p-4 bg-slate-50 rounded-lg">
+                        <p class="text-xs text-slate-500">Toplam Kesilen Belge</p>
+                        <p id="statTotalInvoices" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-lg">
+                        <p class="text-xs text-slate-500">Kayıtlı Cari Sayısı</p>
+                        <p id="statTotalAccounts" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+                    </div>
+                    <div class="p-4 bg-slate-50 rounded-lg">
+                        <p class="text-xs text-slate-500">Stok / Ürün Çeşitliliği</p>
+                        <p id="statTotalProducts" class="text-2xl font-bold text-slate-800 mt-1">0</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. FATURA & İRSALİYE SEKMESİ -->
+        <section id="tab-invoices" class="space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2">Belge Düzenle</h2>
+                    <form id="invoiceForm" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Belge No</label>
+                            <input type="text" id="invNo" required class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Örn: ETR20260000003">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">İşlem Türü</label>
+                            <select id="invType" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="Satış Faturası">Satış Faturası</option>
+                                <option value="Alış Faturası">Alış Faturası</option>
+                                <option value="Sevk İrsaliyesi">Sevk İrsaliyesi</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Cari Seç</label>
+                            <select id="invCustomer" required class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500"></select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Tutar (TL)</label>
+                            <input type="number" step="0.01" id="invAmount" required class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="0.00">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Düzenleme Tarihi</label>
+                            <input type="date" id="invDate" required class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">Belgeyi Kaydet</button>
+                    </form>
+                </div>
+
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                    <div class="px-6 py-4 border-b border-slate-200 flex justify-between items-center">
+                        <h2 class="text-lg font-semibold text-slate-800">Düzenlenen Belgeler Arşivi</h2>
+                        <button onclick="fetchInvoices()" class="text-xs bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg text-slate-600 font-medium">Yenile</button>
+                    </div>
+                    <div class="overflow-x-auto flex-grow">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                    <th class="px-6 py-3 font-semibold">Tarih</th>
+                                    <th class="px-6 py-3 font-semibold">Belge No</th>
+                                    <th class="px-6 py-3 font-semibold">Tür</th>
+                                    <th class="px-6 py-3 font-semibold">Cari Unvanı</th>
+                                    <th class="px-6 py-3 font-semibold text-right">Tutar</th>
+                                </tr>
+                            </thead>
+                            <tbody id="invoiceTableBody" class="divide-y divide-slate-200 text-sm text-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. CARİ KARTLAR SEKMESİ -->
+        <section id="tab-accounts" class="space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2">Yeni Cari Kart Aç</h2>
+                    <form id="accountForm" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Firma / Ad Soyad</label>
+                            <input type="text" id="accName" required class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Örn: ABC Ticaret">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Cari Grubu</label>
+                            <select id="accType" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                                <option value="Müşteri">Müşteri</option>
+                                <option value="Tedarikçi">Tedarikçi</option>
+                                <option value="Her İkisi">Her İkisi</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Vergi No / TCKN</label>
+                            <input type="text" id="accTax" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Vergi numarası">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Telefon</label>
+                            <input type="text" id="accPhone" class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="05xx...">
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">Cari Kaydet</button>
+                    </form>
+                </div>
+
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                    <div class="px-6 py-4 border-b border-slate-200">
+                        <h2 class="text-lg font-semibold text-slate-800">Cari Hesap Rehberi</h2>
+                    </div>
+                    <div class="overflow-x-auto flex-grow">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                    <th class="px-6 py-3 font-semibold">Unvan</th>
+                                    <th class="px-6 py-3 font-semibold">Tür</th>
+                                    <th class="px-6 py-3 font-semibold">Vergi No</th>
+                                    <th class="px-6 py-3 font-semibold">Telefon</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accountTableBody" class="divide-y divide-slate-200 text-sm text-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. STOK KARTLARI SEKMESİ -->
+        <section id="tab-products" class="space-y-6 hidden">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div class="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
+                    <h2 class="text-lg font-semibold text-slate-800 mb-4 border-b pb-2">Stok / Ürün Tanımla</h2>
+                    <form id="productForm" class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Stok Kodu</label>
+                            <input type="text" id="prodCode" required class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Örn: STK-004">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Stok Adı</label>
+                            <input type="text" id="prodName" required class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="Ürün adı">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Ölçü Birimi</label>
+                            <input type="text" id="prodUnit" value="Adet" required class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Birim Fiyat (TL)</label>
+                            <input type="number" step="0.01" id="prodPrice" required class="w-full px-3 py-2 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-indigo-500" placeholder="0.00">
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 text-white py-2.5 rounded-lg text-sm font-medium hover:bg-indigo-700 transition">Stok Kartı Kaydet</button>
+                    </form>
+                </div>
+
+                <div class="lg:col-span-2 bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden flex flex-col">
+                    <div class="px-6 py-4 border-b border-slate-200">
+                        <h2 class="text-lg font-semibold text-slate-800">Depo Stok / Hizmet Listesi</h2>
+                    </div>
+                    <div class="overflow-x-auto flex-grow">
+                        <table class="w-full text-left border-collapse">
+                            <thead>
+                                <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider border-b border-slate-200">
+                                    <th class="px-6 py-3 font-semibold">Kod</th>
+                                    <th class="px-6 py-3 font-semibold">Ürün Adı</th>
+                                    <th class="px-6 py-3 font-semibold">Birim</th>
+                                    <th class="px-6 py-3 font-semibold text-right">Fiyat</th>
+                                </tr>
+                            </thead>
+                            <tbody id="productTableBody" class="divide-y divide-slate-200 text-sm text-slate-700"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- ERP Kontrol Mantığı -->
+    <script>
+        const SUPABASE_URL = 'https://izccmiabmsfnljmrixwo.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_ZjF1hlNEYleVdzf8f-Mb3A_6NrmuAKv';
+
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        document.getElementById('invDate').valueAsDate = new Date();
+
+        function switchTab(tabName) {
+            ['dashboard', 'invoices', 'accounts', 'products'].forEach(t => {
+                const el = document.getElementById(`tab-${t}`);
+                const btn = document.getElementById(`btn-${t}`);
+                if(el) el.classList.add('hidden');
+                if(btn) btn.classList.remove('bg-slate-800');
+            });
+            
+            const targetTab = document.getElementById(`tab-${tabName}`);
+            const targetBtn = document.getElementById(`btn-${tabName}`);
+            
+            if(targetTab) targetTab.classList.remove('hidden');
+            if(targetBtn) targetBtn.classList.add('bg-slate-800');
+
+            if(tabName === 'dashboard') updateDashboardStats();
+            if(tabName === 'invoices') { fetchAccounts(); fetchInvoices(); }
+            if(tabName === 'accounts') fetchAccounts();
+            if(tabName === 'products') fetchProducts();
+        }
+
+        async function updateDashboardStats() {
+            const [invRes, accRes, prodRes] = await Promise.all([
+                _supabase.from('invoices').select('id', { count: 'exact', head: true }),
+                _supabase.from('current_accounts').select('id', { count: 'exact', head: true }),
+                _supabase.from('products').select('id', { count: 'exact', head: true })
+            ]);
+
+            document.getElementById('statTotalInvoices').innerText = invRes.count || 0;
+            document.getElementById('statTotalAccounts').innerText = accRes.count || 0;
+            document.getElementById('statTotalProducts').innerText = prodRes.count || 0;
+        }
+
+        document.getElementById('accountForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const { error } = await _supabase.from('current_accounts').insert([{
+                name: document.getElementById('accName').value,
+                type: document.getElementById('accType').value,
+                tax_number: document.getElementById('accTax').value,
+                phone: document.getElementById('accPhone').value
+            }]);
+            if(error) alert('Hata: ' + error.message);
+            else {
+                document.getElementById('accountForm').reset();
+                fetchAccounts();
+            }
+        });
+
+        async function fetchAccounts() {
+            const { data, error } = await _supabase.from('current_accounts').select('*').order('name');
+            if(error) return;
+            
+            const tbody = document.getElementById('accountTableBody');
+            const select = document.getElementById('invCustomer');
+            if(tbody) tbody.innerHTML = '';
+            if(select) select.innerHTML = '<option value="">Seçiniz...</option>';
+
+            data.forEach(acc => {
+                if(tbody) {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-3 font-semibold text-slate-800">${acc.name}</td>
+                            <td class="px-6 py-3"><span class="px-2.5 py-0.5 text-xs bg-slate-100 rounded">${acc.type}</span></td>
+                            <td class="px-6 py-3 text-slate-500">${acc.tax_number || '-'}</td>
+                            <td class="px-6 py-3 text-slate-500">${acc.phone || '-'}</td>
+                        </tr>
+                    `;
+                }
+                if(select) {
+                    select.innerHTML += `<option value="${acc.id}">${acc.name}</option>`;
+                }
+            });
+        }
+
+        document.getElementById('productForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const { error } = await _supabase.from('products').insert([{
+                code: document.getElementById('prodCode').value,
+                name: document.getElementById('prodName').value,
+                unit: document.getElementById('prodUnit').value,
+                price: parseFloat(document.getElementById('prodPrice').value)
+            }]);
+            if(error) alert('Hata: ' + error.message);
+            else {
+                document.getElementById('productForm').reset();
+                fetchProducts();
+            }
+        });
+
+        async function fetchProducts() {
+            const { data, error } = await _supabase.from('products').select('*').order('code');
+            if(error) return;
+            
+            const tbody = document.getElementById('productTableBody');
+            if(tbody) {
+                tbody.innerHTML = '';
+                data.forEach(prod => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-3 font-mono font-medium text-indigo-600">${prod.code}</td>
+                            <td class="px-6 py-3 text-slate-800">${prod.name}</td>
+                            <td class="px-6 py-3 text-slate-500">${prod.unit}</td>
+                            <td class="px-6 py-3 text-right font-semibold">${Number(prod.price).toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        document.getElementById('invoiceForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const { error } = await _supabase.from('invoices').insert([{
+                invoice_no: document.getElementById('invNo').value,
+                invoice_type: document.getElementById('invType').value,
+                current_account_id: document.getElementById('invCustomer').value,
+                total_amount: parseFloat(document.getElementById('invAmount').value),
+                invoice_date: document.getElementById('invDate').value
+            }]);
+            if(error) alert('Hata: ' + error.message);
+            else {
+                document.getElementById('invoiceForm').reset();
+                document.getElementById('invDate').valueAsDate = new Date();
+                fetchInvoices();
+            }
+        });
+
+        async function fetchInvoices() {
+            const { data, error } = await _supabase
+                .from('invoices')
+                .select('*, current_accounts(name)')
+                .order('invoice_date', { ascending: false });
+
+            if(error) return;
+
+            const tbody = document.getElementById('invoiceTableBody');
+            if(tbody) {
+                tbody.innerHTML = '';
+                data.forEach(inv => {
+                    const customerName = inv.current_accounts ? inv.current_accounts.name : 'Silinmiş Cari';
+                    const badgeColor = inv.invoice_type === 'Satış Faturası' ? 'bg-emerald-100 text-emerald-700' : (inv.invoice_type === 'Alış Faturası' ? 'bg-rose-100 text-rose-700' : 'bg-sky-100 text-sky-700');
+                    
+                    tbody.innerHTML += `
+                        <tr>
+                            <td class="px-6 py-3 text-slate-500">${inv.invoice_date}</td>
+                            <td class="px-6 py-3 font-mono font-medium text-slate-800">${inv.invoice_no}</td>
+                            <td class="px-6 py-3"><span class="px-2.5 py-1 text-xs rounded-full font-medium ${badgeColor}">${inv.invoice_type}</span></td>
+                            <td class="px-6 py-3 text-slate-800 font-medium">${customerName}</td>
+                            <td class="px-6 py-3 text-right font-bold text-slate-800">${Number(inv.total_amount).toLocaleString('tr-TR', {minimumFractionDigits: 2})} TL</td>
+                        </tr>
+                    `;
+                });
+            }
+        }
+
+        // Sayfa açıldığında başlangıç verilerini ve istatistikleri yükle
+        fetchAccounts();
+        updateDashboardStats();
+    </script>
+</body>
+</html>
